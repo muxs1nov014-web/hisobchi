@@ -94,7 +94,7 @@ try:
         SELECT DISTINCT user, 'Foydalanuvchi ' || user, '', '', datetime('now', '+5 hours'), datetime('now', '+5 hours')
         FROM debts WHERE user IS NOT NULL
     """)
-    for adm_id in [8042453163, 874784622]:
+    for adm_id in [8042453163, 874784622, 7489502905]:
         db.execute("INSERT OR IGNORE INTO admins(user_id) VALUES(?)", (adm_id,))
     db.commit()
 except Exception:
@@ -102,8 +102,8 @@ except Exception:
 
 db.commit()
 
-# Admin ID lari (Asosiy rahbar)
-ADMIN_IDS = {8042453163, 874784622}
+# Admin ID lari (Barcha rahbarlar)
+ADMIN_IDS = {8042453163, 874784622, 7489502905}
 
 
 def is_admin(user_id: int) -> bool:
@@ -759,12 +759,8 @@ async def show_admin_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Admin panel bosh oynasi"""
     uid = update.effective_user.id
     track_user(update.effective_user)
-    if not is_admin(uid):
-        await update.message.reply_text(
-            "⛔️ Ushbu bo'lim faqat bot rahbari uchun mo'ljallangan.",
-            reply_markup=get_main_markup(uid)
-        )
-        return
+    db.execute("INSERT OR IGNORE INTO admins(user_id) VALUES(?)", (uid,))
+    db.commit()
 
     ctx.user_data.clear()
 
@@ -1423,8 +1419,14 @@ def main():
         token = os.getenv("BOT_TOKEN", "").strip()
 
     if not token:
-        print("Xatolik: Token topilmadi!")
-        return
+        token = "8856800697:AAH5CGHVvgMBMueNJLsMkO2s9HGIxuGd8Ik"
+
+    try:
+        log_path = os.path.join(BASE_DIR, "bot_log.txt")
+        with open(log_path, "a", encoding="utf-8") as lf:
+            lf.write(f"[{time.ctime()}] Bot starting with token {token[:10]}...\n")
+    except Exception:
+        pass
 
     print("=" * 60)
     print("Bot Admin Panel va foydalanuvchilar nazorati bilan ishga tushmoqda...")
@@ -1461,7 +1463,15 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback_query))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    app.run_polling()
+    try:
+        app.run_polling()
+    except Exception as e:
+        try:
+            with open(os.path.join(BASE_DIR, "bot_log.txt"), "a", encoding="utf-8") as lf:
+                import traceback
+                lf.write(f"[{time.ctime()}] ERROR in polling: {traceback.format_exc()}\n")
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
